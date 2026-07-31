@@ -53,5 +53,7 @@ jobs:
       # "Deploy Webhook" URL from the sendrec service in Dokploy) to
       # auto-redeploy after each successful push. Skipped if unset.
       - name: Trigger Dokploy redeploy
-        if: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK != '' }}
-        run: curl -fsS -X POST "${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}"
+        if: ${{ env.DOKPLOY_DEPLOY_WEBHOOK != '' }}
+        env:
+          DOKPLOY_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
+        run: curl -fsS -X POST "$DOKPLOY_DEPLOY_WEBHOOK"
