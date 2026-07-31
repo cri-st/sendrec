@@ -81,9 +81,6 @@ func (s *Storage) GenerateUploadURL(ctx context.Context, key string, contentType
 	if s.uploadLimit() > 0 && contentLength > s.uploadLimit() {
 		return "", fmt.Errorf("file too large: %d > %d", contentLength, s.uploadLimit())
 	}
-	if contentLength > 0 {
-		input.ContentLength = aws.Int64(contentLength)
-	}
 	req, err := s.presigner.PresignPutObject(ctx, input, s3.WithPresignExpires(expiry))
 	if err != nil {
 		return "", fmt.Errorf("presign upload: %w", err)
