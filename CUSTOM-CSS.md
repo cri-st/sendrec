@@ -18,7 +18,9 @@ When disabled, the branding section (including Custom CSS) does not appear in Se
 2. Enter your CSS in the **Custom CSS** textarea
 3. Click **Save branding**
 
-Your CSS is appended to the end of the watch page `<style>` tag, so it overrides the default styles. It applies to all your videos as a user-level default. There is no per-video CSS override — use the per-video branding overrides (company name, colors, logo, footer) for video-specific adjustments.
+Your CSS is appended to the end of the watch page `<style>` tag, so it overrides the default styles. It applies to all your videos and shared playlists as a user-level default. There is no per-video CSS override — use the per-video branding overrides (company name, colors, logo, footer) for video-specific adjustments.
+
+> **Playlists:** shared playlist watch pages use the same personal branding as your videos (colors and Custom CSS). Playlists are always personally owned and can't belong to a workspace, so there's no separate playlist-level branding to configure — just set your branding once under **Settings > Branding**.
 
 > **Workspace videos:** if a video belongs to a workspace, its watch page uses the workspace's own branding settings (configured under **Settings > Branding** while that workspace is active) wherever the workspace has explicitly set a value. Any field the workspace hasn't set — including Custom CSS — falls back to the video owner's personal branding, not to a blank slate. To brand a whole workspace independently of its members' personal styles, switch to that workspace and save branding there.
 

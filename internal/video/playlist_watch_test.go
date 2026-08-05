@@ -16,6 +16,7 @@ import (
 
 var playlistWatchColumns = []string{
 	"id", "title", "description", "share_password", "require_email",
+	"company_name", "logo_key", "color_background", "color_surface", "color_text", "color_accent", "footer_text", "custom_css",
 }
 
 var playlistVideosColumns = []string{
@@ -51,6 +52,7 @@ func TestPlaylistWatchPage_Success(t *testing.T) {
 		WithArgs(shareToken).
 		WillReturnRows(pgxmock.NewRows(playlistWatchColumns).AddRow(
 			"playlist-1", "My Playlist", (*string)(nil), (*string)(nil), false,
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
 		))
 
 	thumbKey := "recordings/user-1/vtoken2abcde.jpg"
@@ -89,6 +91,58 @@ func TestPlaylistWatchPage_Success(t *testing.T) {
 	ct := rec.Header().Get("Content-Type")
 	if !strings.Contains(ct, "text/html") {
 		t.Errorf("expected text/html content type, got %s", ct)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %v", err)
+	}
+}
+
+func TestPlaylistWatchPage_UsesOwnerPersonalBranding(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	storage := &mockStorage{downloadURL: "https://storage.example.com/test-url"}
+	handler := NewHandler(mock, storage, testBaseURL, 0, 0, 0, 0, testHMACSecret, false)
+	shareToken := "pltoken12345"
+
+	colorBg := "#1a1412"
+	colorAccent := "#e07c3e"
+	customCSS := "body { font-family: 'Georgia', serif; }"
+
+	mock.ExpectQuery(`SELECT p.id, p.title, p.description, p.share_password, p.require_email`).
+		WithArgs(shareToken).
+		WillReturnRows(pgxmock.NewRows(playlistWatchColumns).AddRow(
+			"playlist-1", "My Playlist", (*string)(nil), (*string)(nil), false,
+			(*string)(nil), (*string)(nil), &colorBg, (*string)(nil), (*string)(nil), &colorAccent, (*string)(nil), &customCSS,
+		))
+
+	mock.ExpectQuery(`SELECT v.id, v.title, v.duration, v.share_token, v.content_type, v.user_id`).
+		WithArgs("playlist-1").
+		WillReturnRows(pgxmock.NewRows(playlistVideosColumns).
+			AddRow("vid-1", "First Video", 120, "vtoken1abcde", "video/webm", "user-1", (*string)(nil)),
+		)
+
+	rec := servePlaylistWatchPage(handler, playlistWatchRequest(shareToken))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	body := rec.Body.String()
+	checks := map[string]string{
+		"custom background var": "--brand-bg: " + colorBg,
+		"custom accent var":     "--brand-accent: " + colorAccent,
+		"player accent wired":   "--player-accent: var(--brand-accent, #00b67a)",
+		"custom CSS injected":   customCSS,
+	}
+	for name, want := range checks {
+		if !strings.Contains(body, want) {
+			t.Errorf("expected %s (%q) in response body", name, want)
+		}
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -159,6 +213,7 @@ func TestPlaylistWatchPage_PasswordProtected(t *testing.T) {
 		WithArgs(shareToken).
 		WillReturnRows(pgxmock.NewRows(playlistWatchColumns).AddRow(
 			"playlist-2", "Protected Playlist", (*string)(nil), &passwordHash, false,
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
 		))
 
 	rec := servePlaylistWatchPage(handler, playlistWatchRequest(shareToken))
