@@ -2081,19 +2081,21 @@ func (h *Handler) WatchPage(w http.ResponseWriter, r *http.Request) {
 
 	nonce := httputil.NonceFromContext(r.Context())
 
-	baseBranding := brandingSettingsResponse{
+	personalBranding := brandingSettingsResponse{
 		CompanyName: ubCompanyName, LogoKey: ubLogoKey,
 		ColorBackground: ubColorBg, ColorSurface: ubColorSurface,
 		ColorText: ubColorText, ColorAccent: ubColorAccent, FooterText: ubFooterText,
 		CustomCSS: ubCustomCSS,
 	}
+	baseBranding := personalBranding
 	if videoOrgID != nil {
-		baseBranding = brandingSettingsResponse{
+		orgBranding := brandingSettingsResponse{
 			CompanyName: obCompanyName, LogoKey: obLogoKey,
 			ColorBackground: obColorBg, ColorSurface: obColorSurface,
 			ColorText: obColorText, ColorAccent: obColorAccent, FooterText: obFooterText,
 			CustomCSS: obCustomCSS,
 		}
+		baseBranding = mergeOrgBranding(personalBranding, orgBranding)
 	}
 	branding := resolveBranding(r.Context(), h.storage,
 		baseBranding,

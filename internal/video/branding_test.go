@@ -811,6 +811,82 @@ func TestResolveBranding_CustomLogo(t *testing.T) {
 	}
 }
 
+func TestMergeOrgBranding_FallsBackToPersonalWhenOrgUnset(t *testing.T) {
+	companyName := "Alex's Personal Brand"
+	colorBg := "#111111"
+	css := "body { font-family: 'Inter'; }"
+
+	personal := brandingSettingsResponse{
+		CompanyName:     &companyName,
+		ColorBackground: &colorBg,
+		CustomCSS:       &css,
+	}
+
+	merged := mergeOrgBranding(personal, brandingSettingsResponse{})
+
+	if merged.CompanyName == nil || *merged.CompanyName != companyName {
+		t.Errorf("expected personal company name %q to survive, got %v", companyName, merged.CompanyName)
+	}
+	if merged.ColorBackground == nil || *merged.ColorBackground != colorBg {
+		t.Errorf("expected personal background %q to survive, got %v", colorBg, merged.ColorBackground)
+	}
+	if merged.CustomCSS == nil || *merged.CustomCSS != css {
+		t.Errorf("expected personal custom CSS to survive, got %v", merged.CustomCSS)
+	}
+}
+
+func TestMergeOrgBranding_OrgFieldsOverridePersonal(t *testing.T) {
+	personalName := "Alex's Personal Brand"
+	orgName := "Acme Workspace"
+	personalBg := "#111111"
+
+	personal := brandingSettingsResponse{
+		CompanyName:     &personalName,
+		ColorBackground: &personalBg,
+	}
+	org := brandingSettingsResponse{
+		CompanyName: &orgName,
+	}
+
+	merged := mergeOrgBranding(personal, org)
+
+	if merged.CompanyName == nil || *merged.CompanyName != orgName {
+		t.Errorf("expected org company name %q to win, got %v", orgName, merged.CompanyName)
+	}
+	if merged.ColorBackground == nil || *merged.ColorBackground != personalBg {
+		t.Errorf("expected personal background %q to survive as fallback, got %v", personalBg, merged.ColorBackground)
+	}
+}
+
+func TestResolveBranding_WorkspaceVideoInheritsOwnerBrandingWhenOrgUnset(t *testing.T) {
+	storage := &mockStorage{}
+	companyName := "Alex's Personal Brand"
+	accent := "#ff00ff"
+	css := "body { font-family: 'Inter'; }"
+
+	personal := brandingSettingsResponse{
+		CompanyName: &companyName,
+		ColorAccent: &accent,
+		CustomCSS:   &css,
+	}
+
+	// Simulates a video that belongs to a workspace which has never saved
+	// its own branding: baseBranding is merged (org contributes nothing).
+	baseBranding := mergeOrgBranding(personal, brandingSettingsResponse{})
+
+	cfg := resolveBranding(context.TODO(), storage, baseBranding, brandingSettingsResponse{})
+
+	if cfg.CompanyName != companyName {
+		t.Errorf("expected owner's company name %q, got %q", companyName, cfg.CompanyName)
+	}
+	if cfg.ColorAccent != accent {
+		t.Errorf("expected owner's accent %q, got %q", accent, cfg.ColorAccent)
+	}
+	if cfg.CustomCSS != css {
+		t.Errorf("expected owner's custom CSS, got %q", cfg.CustomCSS)
+	}
+}
+
 // --- Hex color validation ---
 
 // --- Custom CSS in branding handlers ---

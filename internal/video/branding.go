@@ -147,6 +147,40 @@ func resolveBranding(ctx context.Context, storage ObjectStorage, userBranding br
 	return cfg
 }
 
+// mergeOrgBranding combines a workspace's branding with the video owner's
+// personal branding so that any field the workspace hasn't configured falls
+// back to the owner's own settings instead of jumping straight to SendRec's
+// hardcoded defaults. Workspace fields take priority wherever they are
+// explicitly set; everything else is inherited from the personal branding.
+func mergeOrgBranding(personal, org brandingSettingsResponse) brandingSettingsResponse {
+	merged := personal
+	if org.CompanyName != nil && *org.CompanyName != "" {
+		merged.CompanyName = org.CompanyName
+	}
+	if org.LogoKey != nil && *org.LogoKey != "" {
+		merged.LogoKey = org.LogoKey
+	}
+	if org.ColorBackground != nil && *org.ColorBackground != "" {
+		merged.ColorBackground = org.ColorBackground
+	}
+	if org.ColorSurface != nil && *org.ColorSurface != "" {
+		merged.ColorSurface = org.ColorSurface
+	}
+	if org.ColorText != nil && *org.ColorText != "" {
+		merged.ColorText = org.ColorText
+	}
+	if org.ColorAccent != nil && *org.ColorAccent != "" {
+		merged.ColorAccent = org.ColorAccent
+	}
+	if org.FooterText != nil && *org.FooterText != "" {
+		merged.FooterText = org.FooterText
+	}
+	if org.CustomCSS != nil && *org.CustomCSS != "" {
+		merged.CustomCSS = org.CustomCSS
+	}
+	return merged
+}
+
 func resolveLogoKey(userLogoKey, videoLogoKey *string) string {
 	if videoLogoKey != nil && *videoLogoKey != "" {
 		return *videoLogoKey
