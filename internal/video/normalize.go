@@ -26,8 +26,33 @@ type videoProperties struct {
 	Level     int
 	FrameRate float64
 	CodecName string
+	BitRate   int64
 }
 
+// deliveryBitrateLimit returns the max bitrate (bits/sec) we'll serve
+// directly without re-encoding, based on resolution. Mirrors the caps
+// applied client-side at record time (web/src/utils/mediaFormat.ts,
+// estimateVideoBitrate) with 50% headroom, since this is a hard ceiling
+// rather than an encoder target — only re-encode uploads that are clearly
+// oversized (e.g. recorded before the client-side cap shipped, or uploaded
+// via the API from a third-party tool).
+func deliveryBitrateLimit(width, height int) int64 {
+	pixels := width * height
+	switch {
+	case pixels <= 1280*720:
+		return 3_750_000
+	case pixels <= 1920*1080:
+		return 6_000_000
+	case pixels <= 2560*1440:
+		return 9_000_000
+	default:
+		return 12_000_000
+	}
+}
+
+// needsNormalization reports whether the video must be re-encoded before
+// being served: either because it's not iOS-compatible, or because its
+// bitrate is high enough to make playback slow to buffer/stream.
 func (p videoProperties) needsNormalization() bool {
 	if p.CodecName != "h264" {
 		return true
@@ -39,6 +64,9 @@ func (p videoProperties) needsNormalization() bool {
 		return true
 	}
 	if p.FrameRate > float64(iOSMaxFPS) {
+		return true
+	}
+	if p.BitRate > 0 && p.BitRate > deliveryBitrateLimit(p.Width, p.Height) {
 		return true
 	}
 	return false
@@ -73,13 +101,16 @@ type ffprobeResult struct {
 		RFrameRate string `json:"r_frame_rate"`
 		CodecName  string `json:"codec_name"`
 	} `json:"streams"`
+	Format struct {
+		BitRate string `json:"bit_rate"`
+	} `json:"format"`
 }
 
 func probeVideoProperties(inputPath string) (videoProperties, error) {
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
 		"-select_streams", "v:0",
-		"-show_entries", "stream=width,height,level,r_frame_rate,codec_name",
+		"-show_entries", "format=bit_rate:stream=width,height,level,r_frame_rate,codec_name",
 		"-of", "json",
 		inputPath,
 	)
@@ -98,12 +129,14 @@ func probeVideoProperties(inputPath string) (videoProperties, error) {
 	}
 
 	s := result.Streams[0]
+	bitRate, _ := strconv.ParseInt(result.Format.BitRate, 10, 64)
 	return videoProperties{
 		Width:     s.Width,
 		Height:    s.Height,
 		Level:     s.Level,
 		FrameRate: parseFrameRate(s.RFrameRate),
 		CodecName: s.CodecName,
+		BitRate:   bitRate,
 	}, nil
 }
 

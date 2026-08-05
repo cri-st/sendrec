@@ -79,6 +79,21 @@ func TestNeedsNormalization(t *testing.T) {
 			props:    videoProperties{Width: 1920, Height: 1080, Level: 51, FrameRate: 60.1, CodecName: "h264"},
 			expected: true,
 		},
+		{
+			name:     "bitrate within limit for resolution",
+			props:    videoProperties{Width: 1920, Height: 1080, Level: 51, FrameRate: 30, CodecName: "h264", BitRate: 5_000_000},
+			expected: false,
+		},
+		{
+			name:     "bitrate exceeds limit for resolution",
+			props:    videoProperties{Width: 1920, Height: 1080, Level: 51, FrameRate: 30, CodecName: "h264", BitRate: 6_000_001},
+			expected: true,
+		},
+		{
+			name:     "zero bitrate (unknown) does not trigger re-encode on its own",
+			props:    videoProperties{Width: 1920, Height: 1080, Level: 51, FrameRate: 30, CodecName: "h264", BitRate: 0},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -86,6 +101,29 @@ func TestNeedsNormalization(t *testing.T) {
 			got := tt.props.needsNormalization()
 			if got != tt.expected {
 				t.Errorf("needsNormalization() = %v, want %v for %+v", got, tt.expected, tt.props)
+			}
+		})
+	}
+}
+
+func TestDeliveryBitrateLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		width, height int
+		expectedLimit int64
+	}{
+		{"720p", 1280, 720, 3_750_000},
+		{"below 720p", 640, 480, 3_750_000},
+		{"1080p", 1920, 1080, 6_000_000},
+		{"1440p", 2560, 1440, 9_000_000},
+		{"above 1440p", 3840, 2160, 12_000_000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := deliveryBitrateLimit(tt.width, tt.height)
+			if got != tt.expectedLimit {
+				t.Errorf("deliveryBitrateLimit(%d, %d) = %d, want %d", tt.width, tt.height, got, tt.expectedLimit)
 			}
 		})
 	}

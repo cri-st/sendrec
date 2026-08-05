@@ -172,6 +172,7 @@ services:
       - BASE_URL=https://videos.example.com
       - S3_ENDPOINT=http://garage:3900
       - S3_PUBLIC_ENDPOINT=https://storage.example.com
+      # - S3_CDN_ENDPOINT=https://cdn.videos.example.com  # optional, see "Storage" table below
       - S3_BUCKET=recordings
       - S3_ACCESS_KEY=GKxxxxxxxxxxxxxxxxxxxxxxxx
       - S3_SECRET_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -227,6 +228,7 @@ Put a reverse proxy (Caddy, nginx, Traefik) in front to handle TLS. The proxy sh
 |----------|-------------|---------|
 | `S3_ENDPOINT` | S3-compatible API endpoint. For Garage in Docker, use the internal hostname (e.g. `http://garage:3900`) | `http://localhost:3900` |
 | `S3_PUBLIC_ENDPOINT` | Public URL for the same S3 service, used to generate presigned URLs that browsers can reach. When Garage runs behind a reverse proxy, this should be the external URL (e.g. `https://storage.example.com`). If not set, `S3_ENDPOINT` is used — which works in dev but breaks in Docker where `S3_ENDPOINT` points to an internal hostname | — |
+| `S3_CDN_ENDPOINT` | Optional. A stable, non-presigned public URL serving the same bucket (e.g. an R2 Custom Domain, or any CDN/reverse-proxy pointed at the bucket) with no request signing. When set, videos with no share password and no expiration are served through this URL instead of a presigned one, so Cloudflare (or your CDN) can cache and serve repeat views from the edge instead of hitting S3/R2 on every playback. Videos with a password or an expiration always use a presigned URL, since a stable public URL would keep working after access is revoked. Leave unset to always use presigned URLs (default, no caching across viewers) | — |
 | `S3_BUCKET` | Bucket name for video storage | `recordings` |
 | `S3_ACCESS_KEY` | S3 access key | — |
 | `S3_SECRET_KEY` | S3 secret key | — |

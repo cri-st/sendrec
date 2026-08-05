@@ -40,6 +40,10 @@ func (m *mockStorage) GenerateDownloadURLWithDisposition(ctx context.Context, ke
 	return "https://example.com/download?disposition=attachment", nil
 }
 
+func (m *mockStorage) PublicURL(key string) (string, bool) {
+	return "", false
+}
+
 func (m *mockStorage) DeleteObject(ctx context.Context, key string) error {
 	return nil
 }
@@ -88,8 +92,8 @@ func newServerWithDB(t *testing.T) (*server.Server, pgxmock.PgxPoolIface) {
 
 func testWebFS() fstest.MapFS {
 	return fstest.MapFS{
-		"index.html":    {Data: []byte("<html>app</html>")},
-		"assets/app.js": {Data: []byte("console.log('app')")},
+		"index.html":     {Data: []byte("<html>app</html>")},
+		"assets/app.js":  {Data: []byte("console.log('app')")},
 		"assets/app.css": {Data: []byte("body{}")},
 	}
 }

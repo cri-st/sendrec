@@ -568,3 +568,51 @@ func TestUploadFile_Success(t *testing.T) {
 		t.Fatalf("expected body %q, got %q", expectedContent, receivedBody)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// PublicURL
+// ---------------------------------------------------------------------------
+
+func TestPublicURL_NotConfigured(t *testing.T) {
+	store := newTestStorage(t, storage.Config{})
+
+	url, ok := store.PublicURL("recordings/u1/abc.mp4")
+	if ok {
+		t.Fatalf("expected ok=false when CDNBaseURL unset, got url=%q", url)
+	}
+	if url != "" {
+		t.Fatalf("expected empty url, got %q", url)
+	}
+}
+
+func TestPublicURL_Configured(t *testing.T) {
+	store := newTestStorage(t, storage.Config{CDNBaseURL: "https://cdn.example.com"})
+
+	url, ok := store.PublicURL("recordings/u1/abc.mp4")
+	if !ok {
+		t.Fatal("expected ok=true when CDNBaseURL is set")
+	}
+	if url != "https://cdn.example.com/recordings/u1/abc.mp4" {
+		t.Fatalf("unexpected public URL: %q", url)
+	}
+}
+
+func TestPublicURL_TrailingSlashTrimmed(t *testing.T) {
+	store := newTestStorage(t, storage.Config{CDNBaseURL: "https://cdn.example.com/"})
+
+	url, ok := store.PublicURL("recordings/u1/abc.mp4")
+	if !ok {
+		t.Fatal("expected ok=true when CDNBaseURL is set")
+	}
+	if url != "https://cdn.example.com/recordings/u1/abc.mp4" {
+		t.Fatalf("unexpected public URL (trailing slash not trimmed): %q", url)
+	}
+}
+
+func TestPublicURL_NilStorage(t *testing.T) {
+	var store *storage.Storage
+	url, ok := store.PublicURL("recordings/u1/abc.mp4")
+	if ok || url != "" {
+		t.Fatalf("expected ok=false and empty url for nil storage, got ok=%v url=%q", ok, url)
+	}
+}

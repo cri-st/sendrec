@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDrawingCanvas } from "../hooks/useDrawingCanvas";
 import { useCanvasCompositing } from "../hooks/useCanvasCompositing";
 import { useRecording, MIN_RECORDING_SECONDS, MIN_RECORDING_BYTES } from "../hooks/useRecording";
-import { getSupportedMimeType, blobTypeFromMimeType } from "../utils/mediaFormat";
+import { getSupportedMimeType, blobTypeFromMimeType, estimateVideoBitrate, WEBCAM_VIDEO_BITS_PER_SECOND } from "../utils/mediaFormat";
 import { formatDuration } from "../utils/format";
 
 interface RecorderProps {
@@ -286,6 +286,7 @@ export function Recorder({ onRecordingComplete, onRecordingError, maxDurationSec
 
       const recorder = new MediaRecorder(recordingStream, {
         mimeType,
+        videoBitsPerSecond: estimateVideoBitrate(width, height),
       });
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
@@ -302,6 +303,7 @@ export function Recorder({ onRecordingComplete, onRecordingError, maxDurationSec
           : "video/webm";
         const webcamRecorder = new MediaRecorder(webcamStreamRef.current, {
           mimeType: webcamMimeType,
+          videoBitsPerSecond: WEBCAM_VIDEO_BITS_PER_SECOND,
         });
         webcamRecorderRef.current = webcamRecorder;
         webcamChunksRef.current = [];
@@ -368,7 +370,10 @@ export function Recorder({ onRecordingComplete, onRecordingError, maxDurationSec
         mimeTypeRef.current = webmMimeType;
         chunksRef.current = [];
 
-        const fallback = new MediaRecorder(recordingStream, { mimeType: webmMimeType });
+        const fallback = new MediaRecorder(recordingStream, {
+          mimeType: webmMimeType,
+          videoBitsPerSecond: estimateVideoBitrate(width, height),
+        });
         mediaRecorderRef.current = fallback;
         fallback.ondataavailable = handleDataAvailable;
         fallback.onstop = handleStop;

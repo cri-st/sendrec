@@ -60,6 +60,7 @@ func main() {
 	store, err := storage.New(ctx, storage.Config{
 		Endpoint:       getEnv("S3_ENDPOINT", "http://localhost:3900"),
 		PublicEndpoint: os.Getenv("S3_PUBLIC_ENDPOINT"),
+		CDNBaseURL:     os.Getenv("S3_CDN_ENDPOINT"),
 		Bucket:         getEnv("S3_BUCKET", "sendrec"),
 		AccessKey:      os.Getenv("S3_ACCESS_KEY"),
 		SecretKey:      os.Getenv("S3_SECRET_KEY"),

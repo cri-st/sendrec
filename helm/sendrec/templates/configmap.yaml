@@ -10,6 +10,7 @@ data:
   PORT: {{ .Values.sendrec.port | quote }}
   S3_ENDPOINT: {{ .Values.sendrec.env.s3Endpoint | quote }}
   S3_PUBLIC_ENDPOINT: {{ .Values.sendrec.env.s3PublicEndpoint | quote }}
+  S3_CDN_ENDPOINT: {{ .Values.sendrec.env.s3CdnEndpoint | quote }}
   S3_BUCKET: {{ .Values.sendrec.env.s3Bucket | quote }}
   S3_REGION: {{ .Values.sendrec.env.s3Region | quote }}
   AWS_REQUEST_CHECKSUM_CALCULATION: {{ .Values.sendrec.env.awsRequestChecksumCalculation | quote }}

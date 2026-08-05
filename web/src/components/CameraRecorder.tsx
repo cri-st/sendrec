@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRecording, MIN_RECORDING_SECONDS, MIN_RECORDING_BYTES } from "../hooks/useRecording";
-import { getSupportedMimeType, blobTypeFromMimeType } from "../utils/mediaFormat";
+import { getSupportedMimeType, blobTypeFromMimeType, estimateVideoBitrate } from "../utils/mediaFormat";
 import { formatDuration } from "../utils/format";
 
 interface CameraRecorderProps {
@@ -103,7 +103,7 @@ export function CameraRecorder({ onRecordingComplete, onRecordingError, maxDurat
     const mimeType = getSupportedMimeType();
     mimeTypeRef.current = mimeType;
 
-    const recorder = new MediaRecorder(streamRef.current, { mimeType });
+    const recorder = new MediaRecorder(streamRef.current, { mimeType, videoBitsPerSecond: estimateVideoBitrate(1280, 720) });
     mediaRecorderRef.current = recorder;
     chunksRef.current = [];
     recording.pauseStartRef.current = 0;

@@ -205,6 +205,168 @@ func TestWatchPage_Success_RendersVideoPlayer(t *testing.T) {
 	waitAndCheckExpectations(t, mock)
 }
 
+func TestWatchPage_CDNConfigured_NoProtection_UsesPublicURL(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	storage := &mockStorage{
+		downloadURL: "https://s3.example.com/video.webm",
+		publicURL:   "https://cdn.example.com/recordings/u1/abc.webm",
+		publicURLOk: true,
+	}
+	handler := NewHandler(mock, storage, testBaseURL, 0, 0, 0, 0, testHMACSecret, false)
+	shareToken := "cdnnoprot123"
+	createdAt := time.Date(2026, 2, 5, 14, 0, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`SELECT v.id, v.title, v.file_key`).
+		WithArgs(shareToken).
+		WillReturnRows(pgxmock.NewRows(watchPageColumns).AddRow(
+			"vid-1", "My Demo", "recordings/u1/abc.webm", "Bob Smith", createdAt, (*time.Time)(nil),
+			(*string)(nil), (*string)(nil), "disabled",
+			(*string)(nil), (*string)(nil), "none",
+			"owner-user-id", "owner@example.com", (*string)(nil), "video/webm",
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			true, (*string)(nil), (*string)(nil),
+			false,
+			(*string)(nil), (*string)(nil), "none",
+			0,
+			"free",
+			"ready",
+			(*string)(nil),
+		))
+	expectViewRecording(mock, "vid-1")
+
+	rec := serveWatchPage(handler, watchPageRequest(shareToken))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `src="https://cdn.example.com/recordings/u1/abc.webm"`) {
+		t.Error("expected video src to use the CDN public URL when no password/expiry is set")
+	}
+	if strings.Contains(body, "https://s3.example.com/video.webm") {
+		t.Error("did not expect the presigned URL when the CDN public URL is available")
+	}
+	waitAndCheckExpectations(t, mock)
+}
+
+func TestWatchPage_CDNConfigured_PasswordProtected_UsesPresignedURL(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	passwordHash, _ := hashSharePassword("secret123")
+	storage := &mockStorage{
+		downloadURL: "https://s3.example.com/video.webm",
+		publicURL:   "https://cdn.example.com/recordings/u1/abc.webm",
+		publicURLOk: true,
+	}
+	handler := NewHandler(mock, storage, testBaseURL, 0, 0, 0, 0, testHMACSecret, false)
+	shareToken := "cdnpwdprot12"
+	createdAt := time.Date(2026, 2, 5, 14, 0, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`SELECT v.id, v.title, v.file_key`).
+		WithArgs(shareToken).
+		WillReturnRows(pgxmock.NewRows(watchPageColumns).AddRow(
+			"vid-1", "Protected", "recordings/u1/abc.webm", "Alice", createdAt, (*time.Time)(nil),
+			(*string)(nil), &passwordHash, "disabled",
+			(*string)(nil), (*string)(nil), "none",
+			"owner-user-id", "owner@example.com", (*string)(nil), "video/webm",
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			true, (*string)(nil), (*string)(nil),
+			false,
+			(*string)(nil), (*string)(nil), "none",
+			0,
+			"free",
+			"ready",
+			(*string)(nil),
+		))
+	expectViewRecording(mock, "vid-1")
+
+	sig := signWatchCookie(testHMACSecret, shareToken, passwordHash)
+	req := watchPageRequest(shareToken)
+	req.AddCookie(&http.Cookie{
+		Name:  watchCookieName(shareToken),
+		Value: sig,
+	})
+
+	rec := serveWatchPage(handler, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `src="https://s3.example.com/video.webm"`) {
+		t.Error("expected video src to use the presigned URL for password-protected videos, even with a CDN configured")
+	}
+	if strings.Contains(body, "cdn.example.com") {
+		t.Error("did not expect the public CDN URL to be used for a password-protected video")
+	}
+	waitAndCheckExpectations(t, mock)
+}
+
+func TestWatchPage_CDNConfigured_HasExpiry_UsesPresignedURL(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mock.Close()
+
+	storage := &mockStorage{
+		downloadURL: "https://s3.example.com/video.webm",
+		publicURL:   "https://cdn.example.com/recordings/u1/abc.webm",
+		publicURLOk: true,
+	}
+	handler := NewHandler(mock, storage, testBaseURL, 0, 0, 0, 0, testHMACSecret, false)
+	shareToken := "cdnexpiry123"
+	createdAt := time.Date(2026, 2, 5, 14, 0, 0, 0, time.UTC)
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	mock.ExpectQuery(`SELECT v.id, v.title, v.file_key`).
+		WithArgs(shareToken).
+		WillReturnRows(pgxmock.NewRows(watchPageColumns).AddRow(
+			"vid-1", "Expiring", "recordings/u1/abc.webm", "Bob Smith", createdAt, &expiresAt,
+			(*string)(nil), (*string)(nil), "disabled",
+			(*string)(nil), (*string)(nil), "none",
+			"owner-user-id", "owner@example.com", (*string)(nil), "video/webm",
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			(*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil), (*string)(nil),
+			true, (*string)(nil), (*string)(nil),
+			false,
+			(*string)(nil), (*string)(nil), "none",
+			0,
+			"free",
+			"ready",
+			(*string)(nil),
+		))
+	expectViewRecording(mock, "vid-1")
+
+	rec := serveWatchPage(handler, watchPageRequest(shareToken))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `src="https://s3.example.com/video.webm"`) {
+		t.Error("expected video src to use the presigned URL for a video with a share expiry, even with a CDN configured")
+	}
+	if strings.Contains(body, "cdn.example.com") {
+		t.Error("did not expect the public CDN URL to be used for a video with a share expiry")
+	}
+	waitAndCheckExpectations(t, mock)
+}
+
 func TestWatchPage_Success_RendersSpeedButtons(t *testing.T) {
 	mock, err := pgxmock.NewPool()
 	if err != nil {

@@ -28,6 +28,8 @@ type mockStorage struct {
 	downloadErr            error
 	downloadDispositionURL string
 	downloadDispositionErr error
+	publicURL              string
+	publicURLOk            bool
 	deleteErr              error
 	deleteCalled           chan string
 	deleteCallCount        int
@@ -40,6 +42,10 @@ type mockStorage struct {
 	uploadFileCallCount    int
 	uploadFileKeys         []string
 	uploadFileContentTypes []string
+}
+
+func (m *mockStorage) PublicURL(_ string) (string, bool) {
+	return m.publicURL, m.publicURLOk
 }
 
 func (m *mockStorage) GenerateUploadURL(_ context.Context, key string, _ string, _ int64, _ time.Duration) (string, error) {

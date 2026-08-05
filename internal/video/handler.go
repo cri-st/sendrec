@@ -14,6 +14,10 @@ type ObjectStorage interface {
 	GenerateUploadURL(ctx context.Context, key string, contentType string, contentLength int64, expiry time.Duration) (string, error)
 	GenerateDownloadURL(ctx context.Context, key string, expiry time.Duration) (string, error)
 	GenerateDownloadURLWithDisposition(ctx context.Context, key string, filename string, expiry time.Duration) (string, error)
+	// PublicURL returns a stable, non-presigned URL for key when a CDN base
+	// is configured (e.g. an R2 Custom Domain), suitable for edge caching.
+	// ok is false when unconfigured; callers fall back to GenerateDownloadURL.
+	PublicURL(key string) (url string, ok bool)
 	DeleteObject(ctx context.Context, key string) error
 	HeadObject(ctx context.Context, key string) (int64, string, error)
 	DownloadToFile(ctx context.Context, key string, destPath string) error

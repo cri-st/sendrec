@@ -2174,10 +2174,25 @@ func (h *Handler) WatchPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	videoURL, err := h.storage.GenerateDownloadURL(r.Context(), fileKey, 1*time.Hour)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
+	// Prefer a stable, CDN-cacheable public URL when the CDN is configured
+	// AND the video has no password/expiration gating it — otherwise the
+	// public URL would keep working even after the owner revokes access.
+	// Presigned URLs (per-request, unique query string) can never be
+	// edge-cached, so this is what lets repeat viewers hit Cloudflare's
+	// cache instead of paying full R2 origin latency/bandwidth every time.
+	var videoURL string
+	if sharePassword == nil && shareExpiresAt == nil {
+		if u, ok := h.storage.PublicURL(fileKey); ok {
+			videoURL = u
+		}
+	}
+	if videoURL == "" {
+		u, err := h.storage.GenerateDownloadURL(r.Context(), fileKey, 1*time.Hour)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		videoURL = u
 	}
 
 	var thumbnailURL string

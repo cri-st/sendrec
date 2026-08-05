@@ -15,15 +15,22 @@ import (
 )
 
 type Storage struct {
-	client    *s3.Client
-	presigner *s3.PresignClient
-	bucket    string
-	maxBytes  int64
+	client     *s3.Client
+	presigner  *s3.PresignClient
+	bucket     string
+	maxBytes   int64
+	cdnBaseURL string
 }
 
 type Config struct {
 	Endpoint       string
 	PublicEndpoint string // Used for presigned URLs; falls back to Endpoint if empty
+	// CDNBaseURL, when set, points to a stable public host serving the same
+	// bucket contents without request signing (e.g. an R2 Custom Domain
+	// connected to the bucket). It lets Cloudflare's edge cache video
+	// responses across viewers, unlike presigned URLs which are unique
+	// (and thus uncacheable) per request. See PublicURL.
+	CDNBaseURL     string
 	Bucket         string
 	AccessKey      string
 	SecretKey      string
@@ -62,11 +69,23 @@ func New(ctx context.Context, cfg Config) (*Storage, error) {
 	presigner := s3.NewPresignClient(presignClient)
 
 	return &Storage{
-		client:    client,
-		presigner: presigner,
-		bucket:    cfg.Bucket,
-		maxBytes:  cfg.MaxUploadBytes,
+		client:     client,
+		presigner:  presigner,
+		bucket:     cfg.Bucket,
+		maxBytes:   cfg.MaxUploadBytes,
+		cdnBaseURL: strings.TrimRight(cfg.CDNBaseURL, "/"),
 	}, nil
+}
+
+// PublicURL returns a stable, non-presigned URL for key under the
+// configured CDN base, suitable for edge caching across viewers. ok is
+// false when no CDN base URL is configured, in which case callers should
+// fall back to a presigned GenerateDownloadURL.
+func (s *Storage) PublicURL(key string) (url string, ok bool) {
+	if s == nil || s.cdnBaseURL == "" {
+		return "", false
+	}
+	return s.cdnBaseURL + "/" + key, true
 }
 
 func (s *Storage) GenerateUploadURL(ctx context.Context, key string, contentType string, contentLength int64, expiry time.Duration) (string, error) {

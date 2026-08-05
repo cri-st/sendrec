@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getSupportedMimeType, getSupportedVideoMimeType, blobTypeFromMimeType } from "./mediaFormat";
+import { getSupportedMimeType, getSupportedVideoMimeType, blobTypeFromMimeType, estimateVideoBitrate } from "./mediaFormat";
 
 describe("getSupportedMimeType", () => {
   const originalMediaRecorder = globalThis.MediaRecorder;
@@ -109,5 +109,24 @@ describe("blobTypeFromMimeType", () => {
 
   it("returns video/mp4 for unknown types", () => {
     expect(blobTypeFromMimeType("video/quicktime")).toBe("video/mp4");
+  });
+});
+
+describe("estimateVideoBitrate", () => {
+  it("caps 720p and below at 2.5 Mbps", () => {
+    expect(estimateVideoBitrate(1280, 720)).toBe(2_500_000);
+    expect(estimateVideoBitrate(640, 480)).toBe(2_500_000);
+  });
+
+  it("caps 1080p at 4 Mbps", () => {
+    expect(estimateVideoBitrate(1920, 1080)).toBe(4_000_000);
+  });
+
+  it("caps 1440p at 6 Mbps", () => {
+    expect(estimateVideoBitrate(2560, 1440)).toBe(6_000_000);
+  });
+
+  it("caps anything above 1440p at 8 Mbps", () => {
+    expect(estimateVideoBitrate(3840, 2160)).toBe(8_000_000);
   });
 });
