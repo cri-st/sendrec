@@ -122,7 +122,7 @@ var playlistWatchTemplate = template.Must(template.New("playlist-watch").Funcs(t
         .playlist-sidebar {
             width: 300px;
             min-width: 300px;
-            background: var(--brand-surface);
+            background: var(--brand-bg);
             border-right: 1px solid #1e2d45;
             display: flex;
             flex-direction: column;
@@ -194,7 +194,7 @@ var playlistWatchTemplate = template.Must(template.New("playlist-watch").Funcs(t
             display: none;
             width: 100%;
             padding: 10px;
-            background: #1a2740;
+            background: var(--brand-bg);
             border: none;
             border-bottom: 1px solid #1e2d45;
             color: #8892a4;
@@ -229,10 +229,10 @@ var playlistWatchTemplate = template.Must(template.New("playlist-watch").Funcs(t
             position: relative;
         }
         .video-list-item:hover {
-            background: #1e293b;
+            background: var(--brand-surface);
         }
         .video-list-item.active {
-            background: #1e3a5f;
+            background: var(--brand-surface);
             border-left: 3px solid var(--brand-accent, #00b67a);
             padding-left: 13px;
         }
@@ -332,7 +332,7 @@ var playlistWatchTemplate = template.Must(template.New("playlist-watch").Funcs(t
         .player-header {
             padding: 16px 24px;
             border-bottom: 1px solid #1e2d45;
-            background: var(--brand-surface);
+            background: var(--brand-bg);
             flex-shrink: 0;
         }
         .player-header h1 {
@@ -449,7 +449,7 @@ var playlistWatchTemplate = template.Must(template.New("playlist-watch").Funcs(t
             font-size: 12px;
             color: #8892a4;
             border-top: 1px solid #1e2d45;
-            background: var(--brand-surface);
+            background: var(--brand-bg);
             flex-shrink: 0;
         }
         .branding-footer a {
