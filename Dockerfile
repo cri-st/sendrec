@@ -13,7 +13,7 @@ COPY web/ .
 RUN pnpm build
 
 # Stage 2: Build Go binary (cross-compiled natively for the target platform)
-FROM --platform=$BUILDPLATFORM golang:1.26.5-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine AS backend
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /app
