@@ -3,10 +3,11 @@ name: Build and Push Image (main)
 # Publishes the sendrec image to GHCR after CI passes on main, so a
 # self-hosted Dokploy instance can pull ghcr.io/<owner>/sendrec:latest
 # instead of the upstream image. Gated on CI success so we never ship
-# an image built from a commit that failed tests.
+# an image built from a commit that failed tests. Also rebuilds after a
+# new multi-arch base image is published, so the app picks it up.
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["CI", "Build Base Image"]
     types: [completed]
     branches: [main]
 
@@ -41,8 +42,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
-          build-args: VERSION=${{ github.event.workflow_run.head_sha }}
+          build-args: |
+            VERSION=${{ github.event.workflow_run.head_sha }}
+            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/sendrec-base:latest
           tags: |
             ghcr.io/${{ github.repository_owner }}/sendrec:latest
             ghcr.io/${{ github.repository_owner }}/sendrec:${{ github.event.workflow_run.head_sha }}

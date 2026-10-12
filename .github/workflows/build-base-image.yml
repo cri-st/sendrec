@@ -9,7 +9,7 @@ on:
         default: 'v1.8.3'
   push:
     branches: [main]
-    paths: ['Dockerfile.base']
+    paths: ['Dockerfile.base', '.github/workflows/build-base-image.yml']
 
 permissions:
   packages: write
@@ -20,14 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # whisper.cpp is compiled for arm64 under emulation; slow, but this
+      # image is rebuilt rarely.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -45,12 +44,11 @@ jobs:
         with:
           context: .
           file: Dockerfile.base
+          platforms: linux/amd64,linux/arm64
           push: true
           build-args: WHISPER_VERSION=${{ steps.version.outputs.whisper }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/sendrec-base:${{ steps.version.outputs.whisper }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/sendrec-base:latest
-            ghcr.io/sendrec/sendrec-base:${{ steps.version.outputs.whisper }}
-            ghcr.io/sendrec/sendrec-base:latest
+            ghcr.io/${{ github.repository_owner }}/sendrec-base:${{ steps.version.outputs.whisper }}
+            ghcr.io/${{ github.repository_owner }}/sendrec-base:latest
           cache-from: type=gha,scope=base
           cache-to: type=gha,mode=max,scope=base
